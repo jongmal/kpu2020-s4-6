@@ -7,6 +7,14 @@
 #include "box.h"
 #include "image.h"
 #include "demo.h"
+
+#include <mysql.h>
+#pragma comment (lib, "libmariadb.lib")
+#define HOST "localhost" // 연결할 host 주소
+#define USER "root" // 사용자 이름
+#define PASS "autoset" // 패스워드
+#define NAME "home" // 접속할 데이터베이스 이름
+
 #ifdef WIN32
 #include <time.h>
 #include "gettimeofday.h"
@@ -106,6 +114,27 @@ double get_wall_time()
 void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int cam_index, const char *filename, char **names, int classes,
     int frame_skip, char *prefix, char *out_filename, int mjpeg_port, int json_port, int dont_show, int ext_output, int letter_box_in)
 {
+
+	//db con
+	char* query[100]; // 실행할 쿼리
+	char* data = "data";
+	int len;
+	MYSQL* conn_ptr; // MySQL과의 연결을 담당
+	MYSQL_RES* res; // 쿼리에 대한 결과를 받는 변수
+	MYSQL_ROW row; // 쿼리에 대한 실제 데이터 값이 들어있는 변수
+	conn_ptr = mysql_init(NULL); // 초기화
+	if (!conn_ptr) {
+		printf("mysql_init failed!!\n");
+	}
+	// MySQL에 연결
+	conn_ptr = mysql_real_connect(conn_ptr, "localhost", "root", "autoset", "home", 3306, (char*)NULL, 0);
+	if (conn_ptr) {
+		printf("maria DB connection success\n");
+	}
+	else {
+		printf("maria DB connection fail\n");
+	}
+
     letter_box = letter_box_in;
     in_img = det_img = show_img = NULL;
     //skip = frame_skip;
@@ -218,7 +247,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
             //printf("\033[2J");
             //printf("\033[1;1H");
             //printf("\nFPS:%.1f\n", fps);
-            printf("찾은 물체:\n\n");
+            printf("찾은 물체:\n");
 			//printf("test :: %s %s %s %s %s %s", local_dets, local_nboxes, l.classes, demo_names, frame_id, demo_json_port);
 
             ++frame_id;
@@ -226,16 +255,27 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
                 int timeout = 400000;
                 send_json(local_dets, local_nboxes, l.classes, demo_names, frame_id, demo_json_port, timeout);
             }
-			/////insert
-			int left = 0;
-			int right = 0;
+
+	
 			////
-            draw_detections_cv_v3(show_img, local_dets, local_nboxes, demo_thresh, demo_names, demo_alphabet, demo_classes, demo_ext_output, &left, &right);
+			int obj_count = 0;
+            draw_detections_cv_v3(show_img, local_dets, local_nboxes, demo_thresh, demo_names, demo_alphabet, demo_classes, demo_ext_output,&obj_count);
             free_detections(local_dets, local_nboxes);
-			///insert
-			printf("\n좌표 좌:: %d  우:: %d\n",left, right);
+		
+			
 			////
-            printf("\nFPS:%.1f\n", fps);
+            printf("\nFPS:%.1f  최종 디텍션 :: %d 개 \n  프레임카운트 :: %d개", fps, obj_count, count);
+			if ((count % 100) == 99) {
+				sprintf_s(query, sizeof(query), "INSERT INTO data(data) VALUES('%d')", obj_count);
+				len = mysql_query(conn_ptr, query);
+				if (len != 0) {
+					printf("INSERT DATA FAIL");
+				}
+				else {
+					printf("INSERT DATA SUCCESS");
+				}
+
+			}
 
             if(!prefix){
                 if (!dont_show) {
@@ -325,6 +365,8 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
     free(alphabet);
     free_network(net);
     //cudaProfilerStop();
+	//db 종료
+	mysql_close(conn_ptr);
 }
 #else
 void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int cam_index, const char *filename, char **names, int classes,
@@ -333,7 +375,4 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
     fprintf(stderr, "Demo needs OpenCV for webcam images.\n");
 }
 #endif
-//intsert
-void print_location(int x, int y) {
-	printf("left/right :: %d  %d", x, y);
-}
+
