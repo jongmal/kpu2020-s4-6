@@ -40,6 +40,12 @@
 using std::cerr;
 using std::endl;
 
+///fixme///
+#include <list>
+using namespace std;
+//////
+
+
 #ifdef DEBUG
 #define OCV_D "d"
 #else
@@ -848,25 +854,80 @@ void save_cv_jpg(mat_cv *img_src, const char *name)
 // ----------------------------------------
 
 
+
+////fixme////
+typedef struct people {
+	int num;
+	int x, y;
+} people;
+
+
+
+int is_in(box b,int x,int y) {
+	if ((b.x - b.w / 2) < x && (b.x + b.w / 2) > x && (b.y - b.h / 2) < y && (b.y + b.h / 2) > y) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+std::list<people> li;
+std::list<people>::iterator it;
+
+
+int count = 0;
+/////////////////////
+
+
+
 // ====================================================================
 // Draw Detection
 // ====================================================================
-void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output,int *ptr_x,int *ptr_y)
+void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output,int *count)
 {
     try {
+		int round_cut = 10;
+		box test;
+		test.x = 0;
+		test.w = 200;
+		test.y = 0;
+		test.h = 480;
+		cv::Point ptr1, ptr2;
+		ptr1.x = test.x;
+		ptr1.y = test.y;
+		ptr2.x = test.w;
+		ptr2.y = test.h;
+
+
         cv::Mat *show_img = mat;
         int i, j;
         if (!show_img) return;
         static int frame_id = 0;
         frame_id++;
-
+		int cnt = 0;
         for (i = 0; i < num; ++i) {
             char labelstr[4096] = { 0 };
             int class_id = -1;
             for (j = 0; j < classes; ++j) {
+				///////fix me////
+				box b = dets[i].bbox;
+				if (std::isnan(b.w) || std::isinf(b.w)) b.w = 0.5;
+				if (std::isnan(b.h) || std::isinf(b.h)) b.h = 0.5;
+				if (std::isnan(b.x) || std::isinf(b.x)) b.x = 0.5;
+				if (std::isnan(b.y) || std::isinf(b.y)) b.y = 0.5;
+
+
+				int left = (b.x - b.w / 2.)*show_img->cols;
+				int right = (b.x + b.w / 2.)*show_img->cols;
+				int top = (b.y - b.h / 2.)*show_img->rows;
+				int bot = (b.y + b.h / 2.)*show_img->rows;
+				int x = (right + left)/2;
+				int y = (top + bot) / 2;
+				////////////////
                 int show = strncmp(names[j], "dont_show", 9);
                 if (dets[i].prob[j] > thresh && show) {
                     if (class_id < 0) {
+						cnt++;
                         strcat(labelstr, names[j]);
                         class_id = j;
                         char buff[10];
@@ -877,9 +938,19 @@ void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, 
                         strcat(labelstr, ", ");
                         strcat(labelstr, names[j]);
                     }
-                    printf("%s: %.0f%% ", names[j], dets[i].prob[j] * 100);
+                    //printf("!%s: %.0f%%  marsk: %.0f%%  obj: %.0f%%", names[j], dets[i].prob[j] * 100, dets[i].mask[j]*100, dets[i].mask[j]*100 );
+					printf("!%s: %.0f%%  (%d,%d) is_in? %d 디텍션 숫자 : %d", names[j], dets[i].prob[j] * 100, x, y, is_in(test, x,y),cnt);
+					////fixme////
+					
+					
+
+					
                 }
             }
+			///카운트 전달
+			*count = cnt;
+			///
+
             if (class_id >= 0) {
                 int width = std::max(1.0f, show_img->rows * .002f);
 
@@ -929,11 +1000,13 @@ void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, 
 
                 float const font_size = show_img->rows / 1000.F;
                 cv::Size const text_size = cv::getTextSize(labelstr, cv::FONT_HERSHEY_COMPLEX_SMALL, font_size, 1, 0);
-                cv::Point pt1, pt2, pt_text, pt_text_bg1, pt_text_bg2;
+                cv::Point pt1, pt2, pt_text, pt_text_bg1, pt_text_bg2,pt_dot;
                 pt1.x = left;
                 pt1.y = top;
                 pt2.x = right;
                 pt2.y = bot;
+				pt_dot.x = (left + right) / 2;
+				pt_dot.y = (top + bot) / 2;
                 pt_text.x = left;
                 pt_text.y = top - 4;// 12;
                 pt_text_bg1.x = left;
@@ -946,9 +1019,10 @@ void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, 
                 color.val[1] = green * 256;
                 color.val[2] = blue * 256;
 
-				///insert
-				*ptr_x = left;
-				*ptr_y = right;
+				
+				
+
+          
 
 
                 // you should create directory: result_img
@@ -975,8 +1049,14 @@ void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, 
                 else
                     printf("\n");
 
+				/////fix me////
+				cv::rectangle(*show_img, ptr1, ptr2, color, width, 8, 0);
+				////////////////
+
+
                 cv::rectangle(*show_img, pt_text_bg1, pt_text_bg2, color, width, 8, 0);
                 cv::rectangle(*show_img, pt_text_bg1, pt_text_bg2, color, CV_FILLED, 8, 0);    // filled
+				cv::line(*show_img, pt_dot, pt_dot, color, 8);
                 cv::Scalar black_color = CV_RGB(0, 0, 0);
                 cv::putText(*show_img, labelstr, pt_text, cv::FONT_HERSHEY_COMPLEX_SMALL, font_size, black_color, 2 * font_size, CV_AA);
                 // cv::FONT_HERSHEY_COMPLEX_SMALL, cv::FONT_HERSHEY_SIMPLEX
