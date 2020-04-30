@@ -883,7 +883,7 @@ int count = 0;
 // ====================================================================
 // Draw Detection
 // ====================================================================
-void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output,int *count)
+void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output,int *count, char *loc )
 {
     try {
 		int round_cut = 10;
@@ -904,7 +904,11 @@ void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, 
         if (!show_img) return;
         static int frame_id = 0;
         frame_id++;
+		/////카운터 및 좌표 담을 버퍼
 		int cnt = 0;
+
+		char long_buff[200];
+
         for (i = 0; i < num; ++i) {
             char labelstr[4096] = { 0 };
             int class_id = -1;
@@ -923,12 +927,18 @@ void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, 
 				int bot = (b.y + b.h / 2.)*show_img->rows;
 				int x = (right + left)/2;
 				int y = (top + bot) / 2;
-				////////////////
+
+
                 int show = strncmp(names[j], "dont_show", 9);
                 if (dets[i].prob[j] > thresh && show) {
                     if (class_id < 0) {
-						cnt++;
-                        strcat(labelstr, names[j]);
+						if (strcmp(names[j], "person") == 0) {
+							cnt++;
+							strcat(labelstr, "Customer");
+						}else {
+							strcat(labelstr, names[j]);
+						}
+                        
                         class_id = j;
                         char buff[10];
                         sprintf(buff, " (%2.0f%%)", dets[i].prob[j] * 100);
@@ -936,16 +946,26 @@ void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, 
                     }
                     else {
                         strcat(labelstr, ", ");
-                        strcat(labelstr, names[j]);
+						if (strcmp(names[j], "person") == 0) {
+							cnt++;
+							strcat(labelstr, "Customer");
+						}
+						else {
+							strcat(labelstr, names[j]);
+						}
+                        
                     }
                     //printf("!%s: %.0f%%  marsk: %.0f%%  obj: %.0f%%", names[j], dets[i].prob[j] * 100, dets[i].mask[j]*100, dets[i].mask[j]*100 );
-					printf("!%s: %.0f%%  (%d,%d) is_in? %d 디텍션 숫자 : %d", names[j], dets[i].prob[j] * 100, x, y, is_in(test, x,y),cnt);
+					sprintf(long_buff,"%d",x);
+					strcat(long_buff, ",");
+					sprintf(long_buff, "%d", y);
+					strcat(long_buff, "/");
+					printf("!%s: %.0f%%  추출 좌표 : (%d,%d) is_in? %d 디텍션 수 : %d  buff : %s", names[j], dets[i].prob[j] * 100, x, y, is_in(test, x,y),cnt, long_buff);
 					////fixme////
 					
-					
-
-					
                 }
+				///좌표 버퍼 전달
+				*loc = *long_buff;
             }
 			///카운트 전달
 			*count = cnt;
@@ -953,6 +973,8 @@ void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, 
 
             if (class_id >= 0) {
                 int width = std::max(1.0f, show_img->rows * .002f);
+				//
+
 
                 //if(0){
                 //width = pow(prob, 1./2.)*10+1;
@@ -1054,12 +1076,13 @@ void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, 
 				////////////////
 
 
-                cv::rectangle(*show_img, pt_text_bg1, pt_text_bg2, color, width, 8, 0);
-                cv::rectangle(*show_img, pt_text_bg1, pt_text_bg2, color, CV_FILLED, 8, 0);    // filled
+				cv::rectangle(*show_img, pt_text_bg1, pt_text_bg2, color, width, 8, 0);
+				cv::rectangle(*show_img, pt_text_bg1, pt_text_bg2, color, CV_FILLED, 8, 0);    // filled
 				cv::line(*show_img, pt_dot, pt_dot, color, 8);
-                cv::Scalar black_color = CV_RGB(0, 0, 0);
-                cv::putText(*show_img, labelstr, pt_text, cv::FONT_HERSHEY_COMPLEX_SMALL, font_size, black_color, 2 * font_size, CV_AA);
-                // cv::FONT_HERSHEY_COMPLEX_SMALL, cv::FONT_HERSHEY_SIMPLEX
+				cv::Scalar black_color = CV_RGB(0, 0, 0);
+				cv::putText(*show_img, labelstr, pt_text, cv::FONT_HERSHEY_COMPLEX_SMALL, font_size, black_color, 2 * font_size, CV_AA);
+				// cv::FONT_HERSHEY_COMPLEX_SMALL, cv::FONT_HERSHEY_SIMPLEX
+
             }
         }
         if (ext_output) {
