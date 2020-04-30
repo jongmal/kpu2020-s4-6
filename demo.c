@@ -129,7 +129,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 	// MySQL에 연결
 	conn_ptr = mysql_real_connect(conn_ptr, "localhost", "root", "autoset", "home", 3306, (char*)NULL, 0);
 	if (conn_ptr) {
-		printf("maria DB connection success\n");
+		printf("마리아DB 커넥션 [성공]\n");
 	}
 	else {
 		printf("maria DB connection fail\n");
@@ -206,6 +206,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
     }
 
     int count = 0;
+	char loc[200];
     if(!prefix && !dont_show){
         int full_screen = 0;
         create_window_cv("Demo", full_screen, 1352, 1013);
@@ -247,7 +248,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
             //printf("\033[2J");
             //printf("\033[1;1H");
             //printf("\nFPS:%.1f\n", fps);
-            printf("찾은 물체:\n");
+            printf("탐지 목록:\n");
 			//printf("test :: %s %s %s %s %s %s", local_dets, local_nboxes, l.classes, demo_names, frame_id, demo_json_port);
 
             ++frame_id;
@@ -259,20 +260,20 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 	
 			////
 			int obj_count = 0;
-            draw_detections_cv_v3(show_img, local_dets, local_nboxes, demo_thresh, demo_names, demo_alphabet, demo_classes, demo_ext_output,&obj_count);
+            draw_detections_cv_v3(show_img, local_dets, local_nboxes, demo_thresh, demo_names, demo_alphabet, demo_classes, demo_ext_output,&obj_count, &loc);
             free_detections(local_dets, local_nboxes);
 		
 			
 			////
-            printf("\nFPS:%.1f  최종 디텍션 :: %d 개 \n  프레임카운트 :: %d개", fps, obj_count, count);
+            printf("\nFPS:%.1f  최종 디텍션 :: %d 개 \n  프레임카운트 :: %d개 ", fps, obj_count, count);
 			if ((count % 100) == 99) {
-				sprintf_s(query, sizeof(query), "INSERT INTO data(data) VALUES('%d')", obj_count);
+				sprintf_s(query, sizeof(query), "누적 데이터 INSERT 쿼리 시도중...", obj_count);
 				len = mysql_query(conn_ptr, query);
 				if (len != 0) {
-					printf("INSERT DATA FAIL");
+					printf("INSERT 쿼리 [실패]");
 				}
 				else {
-					printf("INSERT DATA SUCCESS");
+					printf("INSERT 쿼리 [성공]");
 				}
 
 			}
