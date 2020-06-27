@@ -885,6 +885,8 @@ int count = 0;
 // ====================================================================
 void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output,int *count, char *loc )
 {
+	char long_buff[200]="!\0";
+
     try {
 		int round_cut = 10;
 		box test;
@@ -907,7 +909,6 @@ void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, 
 		/////카운터 및 좌표 담을 버퍼
 		int cnt = 0;
 
-		char long_buff[200];
 
         for (i = 0; i < num; ++i) {
             char labelstr[4096] = { 0 };
@@ -956,25 +957,34 @@ void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, 
                         
                     }
                     //printf("!%s: %.0f%%  marsk: %.0f%%  obj: %.0f%%", names[j], dets[i].prob[j] * 100, dets[i].mask[j]*100, dets[i].mask[j]*100 );
-					sprintf(long_buff,"%d",x);
-					strcat(long_buff, ",");
-					sprintf(long_buff, "%d", y);
-					strcat(long_buff, "/");
-					printf("!%s: %.0f%%  추출 좌표 : (%d,%d) is_in? %d 디텍션 수 : %d  buff : %s", names[j], dets[i].prob[j] * 100, x, y, is_in(test, x,y),cnt, long_buff);
+					if (strncmp(labelstr, "Customer", 7) == 0) {
+						char tmp[10];
+						sprintf(tmp, "%d", x);
+						strcat(long_buff, tmp);
+						strcat(long_buff, "/");
+						sprintf(tmp, "%d", y);
+						strcat(long_buff, tmp);
+						strcat(long_buff, " ");
+						//printf("%s: %.0f%%  추출 좌표 : (%d,%d) is_in? %d buff : %s \n", names[j], dets[i].prob[j] * 100, x, y, is_in(test, x, y), long_buff);
+
+					}
+					
 					////fixme////
 					
                 }
 				///좌표 버퍼 전달
-				*loc = *long_buff;
+				//*loc = *long_buff;
             }
 			///카운트 전달
+			
 			*count = cnt;
 			///
 
-            if (class_id >= 0) {
+			
+            if (class_id >= 0 && strncmp(labelstr, "Customer", 7)==0) {
                 int width = std::max(1.0f, show_img->rows * .002f);
 				//
-
+				//printf("labelstr :: %s , strcmp :: %d", labelstr, );
 
                 //if(0){
                 //width = pow(prob, 1./2.)*10+1;
@@ -1064,27 +1074,29 @@ void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, 
                 //cvSaveImage(image_name, copy_img, 0);
                 //cvResetImageROI(copy_img);
 
-                cv::rectangle(*show_img, pt1, pt2, color, width, 8, 0);
-                if (ext_output)
-                    printf("\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",
-                    (float)left, (float)top, b.w*show_img->cols, b.h*show_img->rows);
-                else
-                    printf("\n");
+				
+				cv::rectangle(*show_img, pt1, pt2, color, width, 8, 0);
+				if (ext_output)
+					printf("\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",
+					(float)left, (float)top, b.w*show_img->cols, b.h*show_img->rows);
+				else
+					printf("\n");
 
 				/////fix me////
 				cv::rectangle(*show_img, ptr1, ptr2, color, width, 8, 0);
 				////////////////
-
-
 				cv::rectangle(*show_img, pt_text_bg1, pt_text_bg2, color, width, 8, 0);
 				cv::rectangle(*show_img, pt_text_bg1, pt_text_bg2, color, CV_FILLED, 8, 0);    // filled
 				cv::line(*show_img, pt_dot, pt_dot, color, 8);
 				cv::Scalar black_color = CV_RGB(0, 0, 0);
 				cv::putText(*show_img, labelstr, pt_text, cv::FONT_HERSHEY_COMPLEX_SMALL, font_size, black_color, 2 * font_size, CV_AA);
+
 				// cv::FONT_HERSHEY_COMPLEX_SMALL, cv::FONT_HERSHEY_SIMPLEX
+				
 
             }
         }
+		strcat(loc, long_buff);
         if (ext_output) {
             fflush(stdout);
         }
