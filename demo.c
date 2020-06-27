@@ -117,6 +117,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 
 	//db con
 	char* query[100]; // 실행할 쿼리
+	char* query2[100];
 	char* data = "data";
 	int len;
 	MYSQL* conn_ptr; // MySQL과의 연결을 담당
@@ -206,7 +207,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
     }
 
     int count = 0;
-	char loc[200];
+	
     if(!prefix && !dont_show){
         int full_screen = 0;
         create_window_cv("Demo", full_screen, 1352, 1013);
@@ -234,6 +235,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 
     while(1){
         ++count;
+		char loc[300]="\0";
         {
             if(pthread_create(&fetch_thread, 0, fetch_in_thread, 0)) error("Thread creation failed");
             if(pthread_create(&detect_thread, 0, detect_in_thread, 0)) error("Thread creation failed");
@@ -242,13 +244,16 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
             int local_nboxes = nboxes;
             detection *local_dets = dets;
 
+
+
+
             //if (nms) do_nms_obj(local_dets, local_nboxes, l.classes, nms);    // bad results
             if (nms) do_nms_sort(local_dets, local_nboxes, l.classes, nms);
 
             //printf("\033[2J");
             //printf("\033[1;1H");
             //printf("\nFPS:%.1f\n", fps);
-            printf("탐지 목록:\n");
+            ////printf("탐지 목록:\n");
 			//printf("test :: %s %s %s %s %s %s", local_dets, local_nboxes, l.classes, demo_names, frame_id, demo_json_port);
 
             ++frame_id;
@@ -260,20 +265,32 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 	
 			////
 			int obj_count = 0;
-            draw_detections_cv_v3(show_img, local_dets, local_nboxes, demo_thresh, demo_names, demo_alphabet, demo_classes, demo_ext_output,&obj_count, &loc);
+            draw_detections_cv_v3(show_img, local_dets, local_nboxes, demo_thresh, demo_names, demo_alphabet, demo_classes, demo_ext_output,&obj_count, loc);
             free_detections(local_dets, local_nboxes);
 		
 			
 			////
-            printf("\nFPS:%.1f  최종 디텍션 :: %d 개 \n  프레임카운트 :: %d개 ", fps, obj_count, count);
+            printf("FPS:%.1f  최종 디텍션 :: %d 명 \n  프레임카운트 :: %d개 추출한 좌표 : %s\n", fps, obj_count, count, loc);
+			loc[0] = "\0";
 			if ((count % 100) == 99) {
-				sprintf_s(query, sizeof(query), "누적 데이터 INSERT 쿼리 시도중...", obj_count);
+				sprintf_s(query, sizeof(query), "INSERT INTO `data`(`data`) VALUES ('%d');", obj_count);
 				len = mysql_query(conn_ptr, query);
 				if (len != 0) {
-					printf("INSERT 쿼리 [실패]");
+					printf("INSERT data1 [실패]");
 				}
 				else {
-					printf("INSERT 쿼리 [성공]");
+					printf("INSERT data1 [성공]");
+				}
+
+				if (strlen(loc) != 1) {
+					sprintf_s(query2, sizeof(query2), "INSERT INTO `data_loc`(`data`) VALUES ('%s');", loc);
+					len = mysql_query(conn_ptr, query2);
+					if (len != 0) {
+						printf("INSERT data2 [실패]");
+					}
+					else {
+						printf("INSERT data2 [성공]");
+					}
 				}
 
 			}
